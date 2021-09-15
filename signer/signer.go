@@ -9,7 +9,7 @@ import (
 
 // сюда писать код
 
-var TH int = 6
+var multiHashCounter int = 6
 
 func ExecutePipeline(jobs ...job) {
 	var waitgr sync.WaitGroup
@@ -68,19 +68,12 @@ func MultiHash(in, out chan interface{}) {
 		go func(waitgr *sync.WaitGroup, data interface{}, out chan interface{}) {
 			defer waitgr.Done()
 			var innerWaitgr sync.WaitGroup
-			hashArray := make([]string, TH)
+			hashArray := make([]string, multiHashCounter)
 
-			for index := 0; index < TH; index++ {
+			for index := 0; index < multiHashCounter; index++ {
 				innerWaitgr.Add(1)
 				hashData := fmt.Sprintf("%v%v", index, data)
-
-				go func(wg *sync.WaitGroup, s string, array []string, index int) {
-					defer wg.Done()
-
-					crc32Hash := DataSignerCrc32(s)
-					array[index] = crc32Hash
-				}(&innerWaitgr, hashData, hashArray, index)
-
+				go multiHashItteration(&innerWaitgr, hashData, hashArray, index)
 			}
 			innerWaitgr.Wait()
 			multiHash := strings.Join(hashArray, "")
@@ -88,6 +81,12 @@ func MultiHash(in, out chan interface{}) {
 		}(&waitgr, i, out)
 	}
 	waitgr.Wait()
+}
+
+func multiHashItteration(wg *sync.WaitGroup, s string, array []string, index int) {
+	defer wg.Done()
+	crc32Hash := DataSignerCrc32(s)
+	array[index] = crc32Hash
 }
 
 func CombineResults(in, out chan interface{}) {
